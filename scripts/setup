@@ -1,0 +1,40 @@
+#!/bin/bash
+# create directories from a list, each with ira own user, group and permissions
+
+if [[ $(id -u) -ne 0 ]] ; then
+    echo "This script must be run as root. Please use sudo." >&2
+    exit 1
+fi
+
+create_dir() {
+  local dir=$1
+  local user=$2
+  local group=$3
+  local permissions=$4
+  mkdir -p $dir
+  chown $user:$group $dir
+  chmod $permissions $dir
+}
+echo "Creating directories under /opt and /var/log..."
+create_dir /opt/db              root root 755
+create_dir /opt/overrides       root root 755
+create_dir /opt/grafana-data    471  472  755
+create_dir /opt/grafana-plugins 472  472  755
+create_dir /opt/watchtower-data/prometheus-multiproc root root 755
+create_dir /opt/watchtower-data/prometheus-tsdb nobody nogroup 755
+create_dir /opt/watchtower-data/loki-data        10001 10001 755
+create_dir /opt/watchtower-data/openobserve-data 10001 10001 755
+create_dir /var/log/fluent-bit-positions root root 755
+# create_dir /var/log/watchtower         root root 755  # rsyslog will create this
+
+echo "Downloading the OpenObserve Grafana plugin to /tmp and untarring into /opt/grafana-plugins..."
+wget -P /tmp https://zincsearch-releases.s3.us-west-2.amazonaws.com/zo_gp/zo_gp.tar.gz
+tar -xzf /tmp/zo_gp.tar.gz -C /opt/grafana-plugins || true  # ignore errors if file already exists
+
+echo "Copying rsyslog config file and restarting rsyslog..."
+SCRIPT_DIR=$(dirname "$0")
+cp "$SCRIPT_DIR/../rsyslog/30-watchtower.conf" /etc/rsyslog.d/
+systemctl restart rsyslog
+echo "Done with setup"
+echo "Watchtower container logs will be written to /var/log/watchtower/watchtower.log"
+echo "You should probably use logrotate to rotate this file at least daily."

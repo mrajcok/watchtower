@@ -1,0 +1,42 @@
+# https://grafana.com/docs/loki/latest/configure/examples/configuration-examples/#1-local-configuration-exampleyaml
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  log_level: warn
+
+common:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+  replication_factor: 1
+  path_prefix: /loki
+  #chunk_idle_period: 5m       # maximum time to wait before closing a chunk
+  #chunk_retain_period: 30s    # minimum time to keep a chunk in memory before flushing it
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  filesystem:
+    directory: /loki/chunks
+
+# limits_config:
+#   enforce_metric_name: false
+#   reject_old_samples: true
+#   reject_old_samples_max_age: 168h
+
+# chunk_store_config:
+#   max_look_back_period: 0s
+
+# table_manager:
+#   retention_deletes_enabled: true
+#   retention_period: 168h

@@ -1,0 +1,18 @@
+# https://grafana.com/docs/grafana/latest/datasources/prometheus/
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    uid: dedzpyqk89p8ga  # must match what is in grafana/dashboards/*.json
+    jsonData:
+      manageAlerts: true
+      prometheusType: Prometheus
+      # To get Grafana to show "> 2.50.x" in the UI use 2.50.1. This was determined by
+      # setting "> 2.50.x" the UI then visiting http://localhost:3000/api/datasources
+      prometheusVersion: 2.50.1  # 3.2.1 didn't work
+      cacheLevel: 'High'
+      disableRecordingRules: false
+      incrementalQueryOverlapWindow: 10m
+  

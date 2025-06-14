@@ -1,0 +1,16 @@
+service:
+  flush: 1
+  grace: 1
+  log_level: debug
+  
+pipeline:
+  inputs:
+    - name: systemd
+      tag: watchtower-log
+      path: /var/log/journal
+      systemd_filter: CONTAINER_TAG=watchtower
+        # from logging-options-tag in docker-compose.yml
+    - name: stdout
+      match: watchtower-log
+      #format: json_lines  # default is msgpack
+

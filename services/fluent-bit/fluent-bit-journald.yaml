@@ -1,0 +1,107 @@
+service:
+  flush: 1
+  grace: 1
+  log_level: info
+  #hot_reload: on
+  # https://docs.fluentbit.io/manual/administration/monitoring#health-check-for-fluent-bit
+  # http_server: true
+  # http_port: 2020
+  # health_check: on
+  # hc_errors_count: 5
+  # hc_retry_failure_count: 5
+  # hc_period: 5
+  # above configs: health status = (hc_errors_count > 5) OR (hc_retry_failure_count > 5) IN 5 seconds
+
+parsers:
+  - name: syslog_time_parser
+    # a bit odd, but we must specify a format as there is no way to just use the value
+    format: regex
+    regex: ^(?<SYSLOG_TIMESTAMP>.+)$  # grab the entire value
+    time_key: SYSLOG_TIMESTAMP
+    time_format: "%Y-%m-%dT%H:%M:%S.%L%z"
+  - name: watchtower_msg_with_tag_parser
+    format: regex
+    # the value of level will also get set by flent bit in structured metadata field detected_level
+    # msg=... tag=... other_keys=... will be parsed by kv_pairs_parser
+    regex: ^\[(?<pid>\d+)\] (?<level>\w+) (?<file>[^:]+:\d+) (?<kv_pairs>.+)\s*$
+  - name: kv_pairs_parser
+    format: logfmt
+
+pipeline:
+  inputs:
+    - name: systemd  # https://docs.fluentbit.io/manual/pipeline/inputs/systemd
+      tag: watchtower-log
+      path: /var/log/journal
+      DB: /var/log/fluent-bit-positions/journald-watchtoer-log.db
+      systemd_filter: CONTAINER_TAG=watchtower  # from logging:options:tag in docker-compose.yml
+  filters:
+    - name: parser
+      match: watchtower-log
+      key_name: SYSLOG_TIMESTAMP
+      parser: syslog_time_parser
+      reserve_data: true
+    - name: modify
+      match: watchtower-log
+      # rename two journald fields and remove the rest
+      rename: _HOSTNAME host
+      rename: CONTAINER_ID container_id
+      remove_regex: ^_
+      remove_regex: ^CONTAINER_
+      remove_regex: ^SYSLOG_
+      remove: PRIORITY
+      remove: IMAGE_NAME
+    - name: parser   # https://docs.fluentbit.io/manual/pipeline/filters/parser
+      match: watchtower-log
+      condition: key_value_matches MESSAGE .*tag=.*
+      key_name: MESSAGE
+      parser: watchtower_msg_with_tag_parser
+      reserve_data: true
+      #preserve_key: true  # uncomment if you suspect info is being dropped from MESSAGE
+    - name: modify   # https://docs.fluentbit.io/manual/pipeline/filters/parser
+      match: watchtower-log
+      condition: key_exists MESSAGE  # if this still exists, it wasn't parsed by watchtower_msg_with_tag_parser
+      add: pid -
+      add: file -
+      rename: MESSAGE msg
+    - name: parser
+      match: watchtower-log
+      key_name: kv_pairs
+      parser: kv_pairs_parser
+      reserve_data: true
+    - name: lua
+      match: watchtower-log
+      code: |
+        function traceback_newlines(tag, timestamp, record)
+          if record["traceback"] then
+            record["traceback"] = string.gsub(record["traceback"], "|", "\n")
+          end
+          return 1, timestamp, record
+        end
+      call: traceback_newlines
+  outputs:
+    # - name: stdout
+    #   match: watchtower-log
+    #   #format: json_lines  # default is msgpack
+    - name: http  # https://docs.fluentbit.io/manual/pipeline/outputs/http
+                  # https://openobserve.ai/docs/ingestion/logs/fluent-bit/
+      match: watchtower-log
+      host: openobserve
+      port: 5080
+      uri: /api/default/watchtower_logs/_json
+      format: json
+      json_date_key: _timestamp
+      json_date_format: iso8601
+      http_user: ${O2_USER}
+      http_passwd: ${O2_TOKEN}
+    - name: loki  # https://grafana.com/docs/loki/latest/send-data/fluentbit/
+                  # https://docs.fluentbit.io/manual/pipeline/outputs/loki
+      match: watchtower-log
+      host: loki
+      port: 3100
+      labels:  # setting job also sets service_name if service_name is not set--weird
+        service_name=watchtower, tag=$tag
+      structured_metadata:
+        host=$host, container_id=$container_id, pid=$pid, file=$file
+      remove_keys: host, container_id, pid, file, tag
+                   # can't remove level or detected_level isn't populated!?
+      line_format: key_value  # use this instead of json to ensure newlines in tracebacks are preserved

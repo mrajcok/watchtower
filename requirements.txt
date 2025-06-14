@@ -1,0 +1,11 @@
+# remove this line and the next if you do not need sqlite support
+aiosqlite
+aiomysql
+fastapi
+gunicorn
+pandas
+psutil
+# remove this line and the next if you do not need ODBC support
+pyodbc
+uvicorn
+prometheus_client

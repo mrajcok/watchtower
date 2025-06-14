@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 1m
+
+alerting:
+  alertmanagers:
+   - static_configs:
+      - targets: ['alertmanager:9093']
+
+rule_files:
+  - /etc/prometheus/prometheus_alert_rules.yml
+
+scrape_configs:
+  - job_name: 'watchtower'
+    static_configs:
+      - targets: ['watchtower:8000']
+
+# set storage.tsdb.retention.time in the appropriate docker compose file
+# to something much larger than 12 hours

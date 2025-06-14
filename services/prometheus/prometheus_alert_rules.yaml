@@ -1,0 +1,221 @@
+groups:
+  - name: request_alerts
+    rules:
+      # this could indicate a sudden spike in traffic, slow database queries, an undersized
+      # database connection pool, an overloaded database, etc.
+      # you may want to create different such alerts for each resource_id
+      - alert: HighPendingRequests
+        expr: wt_pending_requests > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of pending requests for {{ $labels.resource_id }}"
+          description: "The number of pending requests for {{ $labels.resource_id }} has exceeded 50 for 5+ minutes."
+      # this could also indicate any of the problems listed for HighPendingRequests
+      # you may want to create different such alerts for each resource_id
+      - alert: HighInProgressRequests
+        expr: wt_in_progress_requests > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of in-progress requests for {{ $labels.resource_id }}"
+          description: "The number of in-progress requests for {{ $labels.resource_id }} has exceeded 50 for 5+ minutes."
+      # this could indicate a sudden spike in traffic, slow database queries, an undersized
+      # database connection pool, an overloaded database, etc.
+      # you may want to create different such alerts for each resource_id
+      - alert: RequestSlotTimeouts
+        expr: increase(wt_request_slot_errors_total{error_type="timeout"}[5m]) > 5
+        for: 5m
+        labels:
+          severity: major
+        annotations:
+          summary: "Request slot timeouts for {{ $labels.resource_id }}"
+          description: "There have been more than 5 request slot timeouts for {{ $labels.resource_id }} in the last 5 minutes."
+      # this could indicate a sudden spike in traffic, slow database queries, an undersized
+      # database connection pool, an overloaded database, etc.
+      # you may want to create different such alerts for each resource_id
+      - alert: RequestSlotOverload
+        expr: increase(wt_request_slot_errors_total{error_type="overload"}[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Request slot overload for {{ $labels.resource_id }}"
+          description: "There have been more than 5 request slot overload errors for {{ $labels.resource_id }} in the last 5 minutes."
+      # this could indicate a sudden spike in traffic, slow database queries, an undersized
+      # database connection pool, an overloaded database, etc.
+      # you may want to create different such alerts for each resource_id
+      - alert: HighRequestSlotAcquisitionTime
+        expr: histogram_quantile(0.95, rate(wt_request_slot_acquire_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request slot acquisition time for {{ $labels.resource_id }}"
+          description: "The 95th percentile request slot acquisition time for {{ $labels.resource_id }} exceeds 1 second."
+      # this could indicate an unexpected rise in traffic
+      - alert: HighRequestRate
+        expr: increase(wt_resource_requests_total[1m]) > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate for {{ $labels.resource_id }}"
+          description: "The request rate for {{ $labels.resource_id }} has exceeded 100 requests per minute."
+      # this could indicate requests to a specific endpont are taking too long
+      - alert: HighRequestDuration
+        expr: quantile_over_time(0.95, wt_request_duration_summary_seconds[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request duration for {{ $labels.endpoint }}"
+          description: "The 95th percentile request duration for {{ $labels.endpoint }} has exceeded 10 seconds 5+ minutes."
+      - alert: HighEndpointErrorRate
+        expr: sum(increase(wt_request_duration_summary_seconds_count{status_code="5xx"}[5m])) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for {{ $labels.endpoint }}"
+          description: "There have been more than 20 errors (5xx responses) for {{ $labels.endpoint }} for 5+ minutes."
+        # other alerts for consideration, if you don't expect to have periods of inactivity:
+        #- alert: NoRecentRequests
+        # expr: time() - wt_last_request_time_seconds > 300
+        #- alert: NoRecentResponses
+        # expr: time() - wt_last_response_time_seconds > 300
+  - name: db_connection_pool_alerts
+    rules:
+      # this could indicate a misconfiguration of the connection pool, that the database is down
+      # or unreachable maybe due to a network issue, or the database is overloaded
+      - alert: NoDatabaseConnections
+        expr: wt_open_connections == 0
+        for: 5m
+        labels:
+          severity: major
+        annotations:
+          summary: "No database connections for {{ $labels.resource_id }}"
+          description: "No database connections for {{ $labels.resource_id }} for 5+ minutes."
+      # this could also indicate any of the problems listed for NoDatabaseConnections
+      - alert: ConnectionCreationErrors
+        expr: increase(wt_conn_creation_errors_total[5m]) >= 5
+        for: 5m
+        labels:
+          severity: major
+        annotations:
+          summary: "Connection creation errors for {{ $labels.resource_id }}"
+          description: "There have been 5+ connection creation errors for {{ $labels.resource_id }} for 5+ minutes."
+      # this could indicate that the pool is exhausted or that connections are not being relased back
+      # into the pool in a timely manner
+      - alert: ConnectionAcquireTimeouts
+        expr: increase(wt_conn_acquire_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Connection acquire timeouts for {{ $labels.resource_id }}"
+          description: "Clients have been unable to acquire a connection for {{ $labels.resource_id }} for 5+ minutes."
+      # this could indicate that the max pool size is too small or that the database is overloaded/slow
+      # or that connections are not being released back into the pool in a timely manner
+      - alert: HighConnectionAcquisitionTime
+        expr: histogram_quantile(0.95, rate(wt_acquire_connection_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High connection acquisition time for {{ $labels.resource_id }}"
+          description: "95th percentile connection acquisition time for {{ $labels.resource_id }} exceeds 5 seconds."      # this could indicate under-provisioning of the max pool size or a sudden spike in traffic
+      # this could indicate under-provisioning of the min pool size or a sudden spike in traffic
+      - alert: ConnectionPoolEmpty
+        expr: increase(wt_pool_empty_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Connection pool empty for {{ $labels.resource_id }}"
+          description: "Connection pool for {{ $labels.resource_id }} has been empty 5+ minutes."
+      # this could indicate under-provisioning of the max pool size or a sudden spike in traffic
+      - alert: ConnectionPoolExhausted
+        expr: increase(wt_pool_exhausted_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: major
+        annotations:
+          summary: "Connection pool exhausted for {{ $labels.resource_id }}"
+          description: "Connection pool for {{ $labels.resource_id }} has been exhausted 5+ minutes."
+      # this could indicate over-provisioning the min pool size
+      # it may be appropriate to create different such alerts for each resource_id
+      - alert: LowConnectionUtilizationSqliteTraffic
+        expr: wt_pooled_connections{resource_id="sqlite_traffic"} / wt_open_connections{resource_id="sqlite_traffic"} > 0.5
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low utilization for {{ $labels.resource_id }}"
+          description: "50%+ connections for {{ $labels.resource_id }} have been in the pool for 10+ minutes."
+      # this could indicate slow queries or connections not being released promptly
+      - alert: HighConnectionUsageDuration
+        expr: histogram_quantile(0.95, rate(wt_connection_usage_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High connection usage duration for {{ $labels.resource_id }}"
+          description: "95th percentile connection usage duration for {{ $labels.resource_id }} exceeds 10 seconds."
+  - name: db_query_alerts
+    rules:
+      # this could indicate an overloaded database, or clients maybe asking for too much data
+      # you may want to create different such alerts for each resource_id
+      - alert: HighQueryExecutionTime
+        expr: histogram_quantile(0.95, rate(wt_query_duration_seconds[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High query execution time for {{ $labels.resource_id }}"
+          description: "The 95th percentile query execution time for {{ $labels.resource_id }} exceeds 10 second."
+  - name: resource_alerts
+    rules:
+      - alert: HighCpuUsage
+        expr: wt_cpu_usage > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage has exceeded 80% for 5+ minutes."
+      - alert: HighMemoryUsage
+        expr: wt_mem_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage has exceeded 90% for 5+ minutes."
+      - alert: HighOpenFileDescriptors
+        expr: wt_open_fds > 1000  # TBD: is 1000 a reasonable threshold?
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of open file descriptors"
+          description: "The number of open file descriptors has exceeded 1000 for 5+ minutes."
+      - alert: HighIoReadActivity
+        expr: rate(wt_io_read_bytes_total[1m]) > 1000000  # TBD is 1 MB/s a reasonable threshold?
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High I/O read activity"
+          description: "The I/O read rate has exceeded 1 MB/s for the last minute."
+      # this could indicate that the backgroound misc task is not running--i.e., had an exception
+      - alert: StaleResourceMonitoring
+        expr: time() - timestamp(wt_cpu_usage) > 300
+        for: 5m
+        labels:
+          severity: major
+        annotations:
+          summary: "Stale resource monitoring"
+          description: "Resource monitoring metrics have not been updated for 5+ minutes."

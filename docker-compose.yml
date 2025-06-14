@@ -1,0 +1,119 @@
+services:
+  watchtower:
+    image: watchtower-base
+    #command: sh -c "rm -rf /prometheus-multiproc/* && exec uvicorn --reload --host 0.0.0.0 watchtower:app"
+    # use the following command when testing runtime config overrides
+    #command: sh -c "rm -rf /prometheus-multiproc/* && exec uvicorn --host 0.0.0.0 watchtower:app"
+    # use the following command for production and multi-process development
+    command: sh -c "rm -rf /prometheus-multiproc/* && exec gunicorn -c /opt/app/conf/gunicorn_config.py -w 2 -k uvicorn.workers.UvicornWorker --max-requests=512 --max-requests-jitter=64 -b 0.0.0.0:8000 watchtower:app"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/watchtower/app:/opt/app
+      - /opt/overrides:/opt/overrides
+      - /opt/db:/opt/db
+      - /opt/watchtower-data/prometheus-multiproc:/prometheus-multiproc
+    environment:
+      OVERRIDE_CONFIG_PATH: /opt/overrides/watchtower.cfg
+      MODE: dev
+      # the contents of the following dir must be deleted before starting the service
+      PROMETHEUS_MULTIPROC_DIR: /prometheus-multiproc
+    logging:
+      driver: syslog  # https://docs.docker.com/engine/logging/drivers/syslog/
+      options:
+        syslog-facility: local1
+        syslog-format: rfc5424micro
+        tag: 'watchtower/{{.ID}}'  # sets APP-NAME and MSGID
+
+  fluent-bit:
+    image: fluent/fluent-bit:4.0.0
+    command: /fluent-bit/bin/fluent-bit -c /fluent-bit/etc/fluent-bit.yaml
+    depends_on:
+      - openobserve
+      # better, once we add healthchecks:
+      #  condition: service_healthy
+      - loki
+    group_add:
+      - 101   # $(getent group systemd-journal | cut -d: -f3)
+    volumes:
+      #- ./services/fluent-bit/fluent-bit-rsyslog-debug.yaml:/fluent-bit/etc/fluent-bit.yaml  # DEBUG
+      - ./services/fluent-bit/fluent-bit-rsyslog.yaml:/fluent-bit/etc/fluent-bit.yaml
+      - /var/log/watchtower:/var/log/watchtower:ro
+      - /var/log/fluent-bit-positions:/var/log/fluent-bit-positions
+    environment:
+      O2_USER: ${O2_USER:?}
+      O2_TOKEN: ${O2_TOKEN:?}
+    # healthcheck:
+    #   test: CMD curl -s http://fluent-bit:2020/api/v1/health  # TBD curl is not part of the fluent-bit docker image
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 10s
+  
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus-data
+      - --storage.tsdb.retention.time=12h  # O2 will be used for long term storage
+      - --web.enable-lifecycle
+      - --web.enable-admin-api
+      - --log.level=warn
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./services/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - ./services/prometheus/prometheus_alert_rules.yaml:/etc/prometheus/prometheus_alert_rules.yaml
+      - /opt/watchtower-data/prometheus-tsdb:/prometheus-data
+
+  openobserve:
+    #image: openobserve/openobserve:v0.14.5-debug  # https://github.com/openobserve/openobserve/releases
+    image: openobserve/openobserve:v0.14.5  # https://github.com/openobserve/openobserve/releases
+    ports:
+      - "5080:5080"
+    user: "10001:10001"
+    environment:
+      - ZO_ROOT_USER_EMAIL=${O2_USER:?}
+      - ZO_ROOT_USER_PASSWORD=${O2_PASSWORD:?}
+      - ZO_TELEMETRY=false  # https://openobserve.ai/docs/telemetry/
+      - RUST_LOG=warn
+      # variables below are discussed at https://github.com/openobserve/openobserve/discussions/2711
+      - ZO_MAX_FILE_SIZE_IN_MEMORY=128  # ingester
+      - ZO_FILE_MOVE_THREAD_NUM=1       # compactor threads
+      - ZO_MEMORY_CACHE_MAX_SIZE=128    # query cache
+      #- ZO_MEMORY_CACHE_ENABLED=false  # if you would rather disable it
+      - ZO_MEMORY_CACHE_DATAFUSION_MAX_SIZE=128  # query engine
+    volumes:
+      - /opt/watchtower-data/openobserve-data:/data
+  
+  loki:
+    image: grafana/loki:3.4
+    ports:
+      - "3100:3100"  # enables using curl on the command line to call the Loki api
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./services/loki/loki.yaml:/etc/loki/local-config.yaml
+      - /opt/watchtower-data/loki-data:/loki
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_LOG_LEVEL: warn
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: zinclabs_openobserve
+    volumes:
+      - /opt/grafana-data:/var/lib/grafana
+      - /opt/grafana-plugins:/var/lib/grafana/plugins
+      - ./services/grafana/provisioning:/etc/grafana/provisioning
+      - ./services/grafana/dashboards:/var/lib/grafana/dashboards
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yaml
+      - --log.level=warn
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./services/alertmanager/alertmanager.yaml:/etc/alertmanager/alertmanager.yaml

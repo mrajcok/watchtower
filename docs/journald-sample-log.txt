@@ -1,0 +1,62 @@
+Sat 2025-04-05 19:48:09.164358 EDT [s=40387eb61e734329b345933d6500687a;i=86a1;b=0f2f4a656abb4ee4bad82c603a6b26d4;m=82cc656a3;t=63210a29a8653;x=3ef672c35c99261f]
+    _BOOT_ID=0f2f4a656abb4ee4bad82c603a6b26d4
+    _MACHINE_ID=eb536e5c3d6c41f796c47b2277c942b2
+    _HOSTNAME=Mark
+    PRIORITY=6
+    _UID=0
+    _GID=0
+    _SYSTEMD_SLICE=system.slice
+    _TRANSPORT=journal
+    _CAP_EFFECTIVE=1ffffffffff
+    _COMM=dockerd
+    _EXE=/usr/bin/dockerd
+    _CMDLINE=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+    _SYSTEMD_CGROUP=/system.slice/docker.service
+    _SYSTEMD_UNIT=docker.service
+    CONTAINER_NAME=watchtower-watchtower-1
+    IMAGE_NAME=watchtower-base
+    CONTAINER_LOG_ORDINAL=537
+    _PID=250176
+    _SYSTEMD_INVOCATION_ID=7e38ee214d924f0eaecd0f39714a7d0e
+    CONTAINER_TAG=watchtower
+    SYSLOG_IDENTIFIER=watchtower
+    MESSAGE=level=debug pid=10 arc=db_connection_pool.py:175 msg="background task sleeping 5 secs before open conn retry" resource_id=mysql_traffic
+    CONTAINER_ID=132f5984f084
+    CONTAINER_ID_FULL=132f5984f0840c27b2d2e8db331a5f7477bea07bf66cdc257fa8979c5c2a5ac4
+    CONTAINER_LOG_EPOCH=18e5e35f5238a1c98dba6c905852794c1c5532ad623eedb62e0018a922d19703
+    SYSLOG_TIMESTAMP=2025-04-05T23:48:09.164276343Z
+    _SOURCE_REALTIME_TIMESTAMP=1743896889164358
+
+With
+    [INPUT]
+    Name         systemd
+    Tag          watchtower-log
+    Path         /var/log/journal
+    DB           /var/log/fluent-bit-positions/journald.db
+    Systemd_Filter  CONTAINER_TAG=watchtower
+  [OUTPUT]
+    Name         stdout
+    Match        watchtower-log
+
+Below, watchtower-log: [[1744510004.961995000, {}]:
+- watchtower-log is the fluent bit tag
+- 1744510004.961995000 is epochtime.nanoseconds
+- {} is metadata
+https://docs.fluentbit.io/manual/concepts/key-concepts#event-format
+
+fluent-bit-1  | [8] watchtower: [[1744510004.961995000, {}], {"_BOOT_ID"=>"18b2c690e2e043a9899640f0656bc626", "_MACHINE_ID"=>"eb536e5c3d6c41f796c47b2277c942b2", "_HOSTNAME"=>"Mark", "PRIORITY"=>"3", "_UID"=>"0", "_GID"=>"0", "_SYSTEMD_SLICE"=>"system.slice", "_TRANSPORT"=>"journal", "_CAP_EFFECTIVE"=>"1ffffffffff", "_PID"=>"304", "_COMM"=>"dockerd", "_EXE"=>"/usr/bin/dockerd", "_CMDLINE"=>"/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock", "_SYSTEMD_CGROUP"=>"/system.slice/docker.service", "_SYSTEMD_UNIT"=>"docker.service", "_SYSTEMD_INVOCATION_ID"=>"80fe9e7a9fb84babb521771f22948b7b", "CONTAINER_ID"=>"6e51fbe56b38", "CONTAINER_ID_FULL"=>"6e51fbe56b38cd7c0fea000681a203c1e1de055858774c1abef30d0a454336ee", "CONTAINER_NAME"=>"watchtower-watchtower-1", "CONTAINER_TAG"=>"watchtower", "IMAGE_NAME"=>"watchtower-base", "SYSLOG_IDENTIFIER"=>"watchtower", "MESSAGE"=>"INFO:     Application startup complete.", "CONTAINER_LOG_ORDINAL"=>"12", "CONTAINER_LOG_EPOCH"=>"2c8e42006703cf5fa3548f666547b695af77b43926bd57b744cb616ccc71f140", "SYSLOG_TIMESTAMP"=>"2025-04-13T02:06:44.961953321Z", "_SOURCE_REALTIME_TIMESTAMP"=>"1744510004961970"}]
+
+fluent-bit-1  | [9] watchtower: [[1744510004.962398000, {}], {"_BOOT_ID"=>"18b2c690e2e043a9899640f0656bc626", "_MACHINE_ID"=>"eb536e5c3d6c41f796c47b2277c942b2", "_HOSTNAME"=>"Mark", "PRIORITY"=>"6", "_UID"=>"0", "_GID"=>"0", "_SYSTEMD_SLICE"=>"system.slice", "_TRANSPORT"=>"journal", "_CAP_EFFECTIVE"=>"1ffffffffff", "_PID"=>"304", "_COMM"=>"dockerd", "_EXE"=>"/usr/bin/dockerd", "_CMDLINE"=>"/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock", "_SYSTEMD_CGROUP"=>"/system.slice/docker.service", "_SYSTEMD_UNIT"=>"docker.service", "_SYSTEMD_INVOCATION_ID"=>"80fe9e7a9fb84babb521771f22948b7b", "CONTAINER_ID"=>"6e51fbe56b38", "CONTAINER_ID_FULL"=>"6e51fbe56b38cd7c0fea000681a203c1e1de055858774c1abef30d0a454336ee", "CONTAINER_NAME"=>"watchtower-watchtower-1", "CONTAINER_TAG"=>"watchtower", "IMAGE_NAME"=>"watchtower-base", "SYSLOG_IDENTIFIER"=>"watchtower", "CONTAINER_LOG_ORDINAL"=>"13", "MESSAGE"=>"level=debug pid=10 src=db_connection_pool.py:168 tag=dbconn-added msg="new connection put into pool by background task" conn_id=1 resource_id=sqlite_traffic", "CONTAINER_LOG_EPOCH"=>"2c8e42006703cf5fa3548f666547b695af77b43926bd57b744cb616ccc71f140", "SYSLOG_TIMESTAMP"=>"2025-04-13T02:06:44.962358464Z", "_SOURCE_REALTIME_TIMESTAMP"=>"1744510004962373"}]
+
+fluent-bit stdout:
+watchtower-log: [[1744598354.341808627, {}], {"time"=>"2025-04-14T02:39:14.341808627Z", "_MACHINE_ID"=>"eb536e5c3d6c41f796c47b2277c942b2", "_HOSTNAME"=>"Mark", "PRIORITY"=>"6", "_UID"=>"0", "_GID"=>"0", "_SYSTEMD_SLICE"=>"system.slice", "_TRANSPORT"=>"journal", "_CAP_EFFECTIVE"=>"1ffffffffff", "_COMM"=>"dockerd", "_EXE"=>"/usr/bin/dockerd", "_CMDLINE"=>"/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock", "_SYSTEMD_CGROUP"=>"/system.slice/docker.service", "_SYSTEMD_UNIT"=>"docker.service", "_BOOT_ID"=>"63f8b3d0deae4ecfa8f5bd6c55f922ee", "_PID"=>"280", "_SYSTEMD_INVOCATION_ID"=>"1455fa72254b46258e3cefd60d576911", "IMAGE_NAME"=>"watchtower-base", "CONTAINER_NAME"=>"watchtower-watchtower-1", "CONTAINER_LOG_ORDINAL"=>"17", "MESSAGE"=>"level=debug pid=9 src=db_connection_pool.py:168 tag=dbconn-added msg="new connection put into pool by background task" conn_id=3 resource_id=sqlite_traffic", "CONTAINER_ID_FULL"=>"5695599c712653ae7fb8d9a290164d163bf98504f5d81760f4e34746b5c95fc4", "CONTAINER_TAG"=>"5695599c7126", "CONTAINER_ID"=>"5695599c7126", "SYSLOG_IDENTIFIER"=>"5695599c7126", "CONTAINER_LOG_EPOCH"=>"7c5bad8fa80e3534e69cdff811e057790eeae9384c0198176884f1352efe918e", "_SOURCE_REALTIME_TIMESTAMP"=>"1744598354341838"}]
+
+Loki:
+"1744598354341808627",
+  "{\"time\":\"2025-04-14T02:39:14.341808627Z\",\"_MACHINE_ID\":\"eb536e5c3d6c41f796c47b2277c942b2\",\"_HOSTNAME\":\"Mark\",\"PRIORITY\":\"6\",\"_UID\":\"0\",\"_GID\":\"0\",\"_SYSTEMD_SLICE\":\"system.slice\",\"_TRANSPORT\":\"journal\",\"_CAP_EFFECTIVE\":\"1ffffffffff\",\"_COMM\":\"dockerd\",\"_EXE\":\"/usr/bin/dockerd\",\"_CMDLINE\":\"/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock\",\"_SYSTEMD_CGROUP\":\"/system.slice/docker.service\",\"_SYSTEMD_UNIT\":\"docker.service\",\"_BOOT_ID\":\"63f8b3d0deae4ecfa8f5bd6c55f922ee\",\"_PID\":\"280\",\"_SYSTEMD_INVOCATION_ID\":\"1455fa72254b46258e3cefd60d576911\",\"IMAGE_NAME\":\"watchtower-base\",\"CONTAINER_NAME\":\"watchtower-watchtower-1\",\"CONTAINER_LOG_ORDINAL\":\"17\",\"MESSAGE\":\"level=debug pid=9 src=db_connection_pool.py:168 tag=dbconn-added msg=\\\"new connection put into pool by background task\\\" conn_id=3 resource_id=sqlite_traffic\",\"CONTAINER_ID_FULL\":\"5695599c712653ae7fb8d9a290164d163bf98504f5d81760f4e34746b5c95fc4\",\"CONTAINER_TAG\":\"5695599c7126\",\"CONTAINER_ID\":\"5695599c7126\",\"SYSLOG_IDENTIFIER\":\"5695599c7126\",\"CONTAINER_LOG_EPOCH\":\"7c5bad8fa80e3534e69cdff811e057790eeae9384c0198176884f1352efe918e\",\"_SOURCE_REALTIME_TIMESTAMP\":\"1744598354341838\"}"
+
+Note that I had
+  labels: job=watchtower
+in my fluent-bit.yaml file when the above logs were generated.
+
+  "{\"_MACHINE_ID\":\"eb536e5c3d6c41f796c47b2277c942b2\",\"_HOSTNAME\":\"Mark\",\"PRIORITY\":\"6\",\"SYSLOG_FACILITY\":\"3\",\"_SYSTEMD_SLICE\":\"system.slice\",\"_TRANSPORT\":\"journal\",\"SYSLOG_IDENTIFIER\":\"systemd-resolved\",\"_UID\":\"101\",\"_GID\":\"103\",\"_COMM\":\"systemd-resolve\",\"_EXE\":\"/usr/lib/systemd/systemd-resolved\",\"_CMDLINE\":\"/lib/systemd/systemd-resolved\",\"_SYSTEMD_CGROUP\":\"/system.slice/systemd-resolved.service\",\"_SYSTEMD_UNIT\":\"systemd-resolved.service\",\"CODE_FILE\":\"src/resolve/resolved-manager.c\",\"_BOOT_ID\":\"63f8b3d0deae4ecfa8f5bd6c55f922ee\",\"TID\":\"159\",\"_PID\":\"159\",\"_SYSTEMD_INVOCATION_ID\":\"fb0121a9a63f4c8ba90d4c647d88b724\",\"CODE_LINE\":\"333\",\"CODE_FUNC\":\"on_clock_change\",\"MESSAGE\":\"Clock change detected. Flushing caches.\",\"_CAP_EFFECTIVE\":\"2000\",\"_SOURCE_REALTIME_TIMESTAMP\":\"1744591673157205\"}"

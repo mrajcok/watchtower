@@ -1,0 +1,15 @@
+service:
+  flush: 1
+  grace: 1
+  log_level: debug
+  
+pipeline:
+  inputs:
+  - name: tail  # https://docs.fluentbit.io/manual/pipeline/inputs/systemd
+    tag: watchtower-log
+    path: /var/log/watchtower/watchtower.log
+  outputs:
+  - name: stdout
+    match: watchtower-log
+    #format: json_lines  # default is msgpack
+

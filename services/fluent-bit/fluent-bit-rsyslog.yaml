@@ -1,0 +1,109 @@
+service:
+  flush: 1
+  grace: 1
+  log_level: warn
+  #hot_reload: on
+  # https://docs.fluentbit.io/manual/administration/monitoring#health-check-for-fluent-bit
+  # http_server: true
+  # http_port: 2020
+  # health_check: on
+  # hc_errors_count: 5
+  # hc_retry_failure_count: 5
+  # hc_period: 5
+  # above configs: health status = (hc_errors_count > 5) OR (hc_retry_failure_count > 5) IN 5 seconds
+
+parsers:
+  - name: watchtower_log_with_tag_parser
+    format: regex
+    # "log"=>"Apr 30 23:00:52 Mark 1 2025-04-30T23:00:52.158684-04:00 Mark watchtower/893bfefb37bd
+    #   278 watchtower/893bfefb37bd - [9] DEBUG db_connection_pool.py:200 tag=dbconn-keep
+    #   msg="connection kept in pool" conn_id=3 conn_age=1:40 conn_uses=0 resource_id=sqlite_traffic"
+    # everything from tag= onward will be parsed by kv_pairs_parser
+    regex: ^... .. ..:..:.. (?<host>\S+) \d+ (?<ts>\S+) \S+ (?<service>\w+)\/(?<container_id>\S+) \d+ \S+ \- \[(?<pid>\d+)\] (?<level>\w+) (?<file>[^:]+:\d+) (?<kv_pairs>.+)\s*$
+  - name: watchtower_log_without_tag_parser
+    format: regex
+    # "log"=>"May  3 12:30:07 Mark 1 2025-05-03T12:30:07.354538-04:00 Mark watchtower/893bfefb37bd 278 watchtower/893bfefb37bd - INFO:     Started server process [9]"
+    regex: "^... .. ..:..:.. (?<host>\\S+) \\d+ (?<ts>\\S+) \\S+ (?<service>\\w+)\\/(?<container_id>\\S+) \\d+ \\S+ \\- (?<level>\\w+):\\s*(?<log_msg>.+)\\s*$"
+  - name: timestamp_parser
+    # a bit odd, but we must specify a format as there is no way to just use the value
+    format: regex
+    regex: ^(?<rsyslog_timestamp>.+)$
+    time_key: rsyslog_timestamp
+    time_format: "%Y-%m-%dT%H:%M:%S.%L%z"
+  - name: kv_pairs_parser
+    format: logfmt
+
+pipeline:
+  inputs:
+    - name: tail  # https://docs.fluentbit.io/manual/pipeline/inputs/systemd
+      tag: watchtower-log
+      path: /var/log/watchtower/watchtower.log
+      DB: /var/log/fluent-bit-positions/rsyslog-watchtower-log.db
+  filters:
+    - name: parser   # https://docs.fluentbit.io/manual/pipeline/filters/parser
+      match: watchtower-log
+      condition: key_value_matches log .*tag=.*
+      key_name: log
+      parser: watchtower_log_with_tag_parser
+      #preserve_key: true  #DEBUG, uncomment to keep/see original log field
+    - name: parser
+      match: watchtower-log
+      key_name: log
+      parser: watchtower_log_without_tag_parser
+    - name: parser
+      match: watchtower-log
+      key_name: ts
+      parser: timestamp_parser
+      reserve_data: true  # keep all other fields
+    - name: modify   # https://docs.fluentbit.io/manual/pipeline/filters/modify
+      match: watchtower-log
+      condition: key_exists log_msg  # if this exists, the log wasn't from logging.py
+      add: file -
+      add: tag -
+      rename: log_msg msg
+    # - name: modify
+    #   match: watchtower-log
+    #   condition: key_exists log  # if this still exists, it wasn't parsed by watchtower_msg_with_tag_parser
+    #   rename: log unparsed_log
+    - name: parser
+      match: watchtower-log
+      key_name: kv_pairs
+      parser: kv_pairs_parser
+      reserve_data: true
+    - name: lua
+      match: watchtower-log
+      code: |
+        function traceback_newlines(tag, timestamp, record)
+          if record["traceback"] then
+            record["traceback"] = string.gsub(record["traceback"], "|", "\n")
+          end
+          return 1, timestamp, record
+        end
+      call: traceback_newlines
+  outputs:
+    # - name: stdout
+    #   match: watchtower-log
+    #   #format: json_lines  # default is msgpack
+    - name: http  # https://docs.fluentbit.io/manual/pipeline/outputs/http
+                  # https://openobserve.ai/docs/ingestion/logs/fluent-bit/
+      match: watchtower-log
+      host: openobserve
+      port: 5080
+      uri: /api/default/watchtower_logs/_json
+      format: json
+      json_date_key: _timestamp
+      json_date_format: iso8601
+      http_user: ${O2_USER}
+      http_passwd: ${O2_TOKEN}
+    - name: loki  # https://grafana.com/docs/loki/latest/send-data/fluentbit/
+                  # https://docs.fluentbit.io/manual/pipeline/outputs/loki
+      match: watchtower-log
+      host: loki
+      port: 3100
+      labels:  # setting job also sets service_name if service_name is not set--weird
+        service_name=watchtower, tag=$tag
+      structured_metadata:
+        host=$host, container_id=$container_id, pid=$pid, file=$file
+      remove_keys: host, container_id, pid, file, tag
+                   # can't remove level or detected_level isn't populated!?
+      line_format: key_value  # use this instead of json to ensure newlines in tracebacks are preserved

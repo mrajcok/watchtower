@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+WORKDIR /opt/app
+# remove the following RUN command if you do not need to use ODBC
+RUN apt-get update && apt-get install -y \
+    unixodbc \
+    unixodbc-dev \
+    && rm -rf /var/lib/apt/lists/*
+# remove the following RUN command if you do not need to use ODBC with MariaDB
+RUN apt-get update && apt-get install -y \
+    libmariadb3 \
+    odbc-mariadb \
+    && rm -rf /var/lib/apt/lists/*
+COPY ./requirements.txt .
+RUN pip3 install -r requirements.txt

@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 1m
+
+alerting:
+  alertmanagers:
+   - static_configs:
+      - targets: ['alertmanager:9093']
+
+rule_files:
+  - /etc/prometheus/prometheus_alert_rules.yml
+
+scrape_configs:
+  - job_name: 'watchtower'
+    static_configs:
+      - targets: ['watchtower:8000']
+
+remote_write:  # forward date to OpenObserve for long term storage
+  - url: http://openobserve:5080/api/default/prometheus/api/v1/write
+    basic_auth:  # make the password a docker swarm secrets or put in a vault
+      username: root@o2.com
+      password: root
