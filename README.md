@@ -125,9 +125,9 @@ Go to http://localhost:5080/web/logs and view the watchtower logs.
   unlike the other URLs in this section, this one is not a website
 
 # Screenshots
+See [screenshots](screenshots).
+
 TBD
-- Grafana metrics
-- Grafana logs
 - Grafana alerts
 - O2 metrics
 - O2 logs
