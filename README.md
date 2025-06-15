@@ -127,13 +127,6 @@ Go to http://localhost:5080/web/logs and view the watchtower logs.
 # Screenshots
 See [screenshots](screenshots).
 
-TBD
-- Grafana alerts
-- O2 metrics
-- O2 logs
-- O2 dashboards
-- O2 alerts
-
 # Architecture
 WatchTower, Prometheus server, Fluent Bit, Loki, O2 and Grafana each run in their own container.
 ```mermaid
@@ -1034,8 +1027,14 @@ Since where to send alerts is very company-specific, it is outside the scope of 
 I recommend learning more about Alertmanager, which provides "a controllable pipeline"
 for managing alerts. E.g., inhibition, silencing, routing, grouping, throttling, etc.
 
-# Viewing alerts with OpenObserve
-TBD
+# Alerts and OpenObserve
+O2's Alerts page is designed for alerts generated and managed within O2 itself (using
+its own rules and log/metric queries).
+Prometheus alerts, by default, are not automatically sent to or displayed in OpenObserve's
+Alerts UI. Although Prometheus alerts could be sent to O2 and ingested as logs,
+this seems like too much effort. I recommend using Alertmanager's or Grafana's UI to view
+Prometheus alerts. The other option is to forward Promtheus metrics to O2 and
+create O2 alert rules directly on those metrics.
 
 # OpenObserve Notes
 O2 can run as a single instance or in HA mode on a cluster: 
@@ -1051,7 +1050,13 @@ See https://github.com/openobserve/openobserve/discussions/2711 for some tips ab
 tuning memory usage lower if desired. This project does tune a number of items lower.
 
 # Files, Directories, Retentions
-TBD
+Look at [scripts/setup](scripts/setup) to see which directories are used by the project.
+
+- Loki logs are retained for 30 days, see services/loki/loki.yaml.
+- Prometheus logs are retained for only 12 hours, since this project is setup such
+  that O2 is used for long term log storage. See docker-compose.yml.
+- The O2 default retention is 10 years. See https://openobserve.ai/docs/environment-variables
+  env variable ZO_COMPACT_DATA_RETENTION_DAYS.
 
 # Possible future enhancements/features
 A database middleware layer like Watchtower can always be enhanced to add more functionality/features.

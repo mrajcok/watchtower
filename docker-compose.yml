@@ -55,7 +55,7 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yaml
       - --storage.tsdb.path=/prometheus-data
-      - --storage.tsdb.retention.time=12h  # O2 will be used for long term storage
+      - --storage.tsdb.retention.time=12h  # use 12h if O2 will be used for long term storage
       - --web.enable-lifecycle
       - --web.enable-admin-api
       - --log.level=warn
